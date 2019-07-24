@@ -1,5 +1,9 @@
 import {IChannel} from './interfaces';
 
+export class RemoteWorker extends Worker implements IChannel {
+  
+}
+
 export class RemoteOrigin implements IChannel {
   private handlers = new Map<any, any>();
 
