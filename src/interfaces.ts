@@ -46,4 +46,5 @@ export interface IMessenger {
 
 export interface IRouter {
   add(channel: IChannel, topics: RegExp[]): void;
+  remove(channel: IChannel): void;
 }

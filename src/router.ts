@@ -3,7 +3,6 @@ import {hasTopic, getData} from './utils';
 
 ​
 export class Router implements IRouter {
-
   private channels = new Map<IChannel, RegExp[]>();
   private requests = new Map<string, IChannel>();
 ​
@@ -13,6 +12,10 @@ export class Router implements IRouter {
     channel.addEventListener(
       'message',
       (msg: MessageEvent) => this.dispatch(getData(msg), channel));
+  }
+
+  public remove(channel: IChannel): void {
+    this.channels.delete(channel);
   }
 ​
   private dispatch = (data: Message, origin: IChannel) => {
