@@ -7,7 +7,9 @@ export class RemoteWorker extends Worker implements IChannel {
 export class RemoteOrigin implements IChannel {
   private handlers = new Map<any, any>();
 
-  constructor(private origin: string, private window: Window) {}
+  constructor(
+    private window: Window, 
+    private origin: string = window.origin) {}
 
   postMessage(message: any): void {
     this.window.postMessage(message, this.origin);
