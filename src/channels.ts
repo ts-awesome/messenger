@@ -1,7 +1,7 @@
-import {IChannel} from './interfaces';
+import {IChannel, Message} from './interfaces';
 
 export class RemoteWorker extends Worker implements IChannel {
-  
+
 }
 
 export class RemoteOrigin implements IChannel {
@@ -11,7 +11,7 @@ export class RemoteOrigin implements IChannel {
     private window: Window, 
     private origin: string = window.origin) {}
 
-  postMessage(message: any): void {
+  postMessage(message: Message): void {
     this.window.postMessage(message, this.origin);
   }
 
@@ -36,8 +36,8 @@ export class RemoteOrigin implements IChannel {
 export class RemoteSocket implements IChannel {
   constructor(private socket: WebSocket) {}
 
-  postMessage(message: any): void {
-    this.socket.send(message);
+  postMessage(message: Message): void {
+    this.socket.send(JSON.stringify(message));
   }
 
   addEventListener(type: 'message', listener: EventListener): void {
@@ -46,5 +46,21 @@ export class RemoteSocket implements IChannel {
 
   removeEventListener(type: "message", listener: EventListener): void {
     this.socket.removeEventListener('message', listener);
+  }
+}
+
+export class RemoteEvents implements IChannel {
+  constructor(private source: EventSource) {}
+
+  postMessage(message: any): void {
+    console.warn(`Sending data is not supported by EventSource`);
+  }
+
+  addEventListener(type: 'message', listener: EventListener): void {
+    this.source.addEventListener('message', listener);
+  }
+
+  removeEventListener(type: "message", listener: EventListener): void {
+    this.source.removeEventListener('message', listener);
   }
 }

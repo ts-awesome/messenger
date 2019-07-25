@@ -1,29 +1,26 @@
-import {IChannel, IMessenger, Kind} from './interfaces';
-import {getData} from './utils';
+import {IChannel, IMessenger, Kind, Message, RequestMessage} from './interfaces';
+import {getData, uid} from './utils';
 
 ​
-export function uid() {
-  return Date.now().toString(36) + Math.random().toString(36);​
-}
-
 export class Messenger implements IMessenger {
 ​
   constructor(
     private readonly channel: IChannel
   ) {}
 ​
-  public query<T>(topic: string, data?: any, id: string = uid()): Promise<T> {
-    return new Promise((resolve, reject) => {
+  public query<T, X = any>(topic: string, data?: X, id: string = uid()): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
       this.channel.postMessage({ kind: Kind.Request, topic, data, id});
 
-      const handler = (msg: MessageEvent) => {
-        const {kind, topic, id: _, data, error} = getData(msg);
-        if (kind !== Kind.Response || topic !== topic || _ !== id) {
+      const handler = (event: MessageEvent) => {
+        const msg = getData(event);
+        if (msg.kind !== Kind.Response || msg.topic !== topic || msg.id !== id) {
           return
         }
 ​
         this.channel.removeEventListener('message', handler);
 ​
+        const {error, data} = msg;
         error ? reject(error) : resolve(data);
       };
 
@@ -35,29 +32,27 @@ export class Messenger implements IMessenger {
     this.channel.postMessage({ kind: Kind.Publish, topic, data});
   }
 ​
-  public subscribe<T>(target: string, handler: (data: T) => void): () => void {
-    return this.handle(
+  public subscribe<T>(target: string, handler: (data?: T) => void): () => void {
+    return this.handle<T>(
       ({kind, topic}) => kind === Kind.Request && topic === target,
-      handler);
+      ({data}) => handler(data));
   }
 ​
-  public serve<T>(target: string, handler: (x: T) => Promise<any>): () => void {
-  ​ return this.handle(
+  public serve<T, X = any>(target: string, handler: (x?: T) => Promise<X>): () => void {
+  ​ return this.handle<T>(
       ({kind, topic}) => kind === Kind.Request && topic === target,
-    async ({data, topic, id}) => {
-      let res = null;
+    async ({data, topic, id}: RequestMessage<T>) => {
       try {
-        res = { kind: Kind.Response, topic, id, data: await handler(data) };
+        this.channel.postMessage({ kind: Kind.Response, topic, id, data: await handler(data) });
       } catch (ex) {
-        res = { kind: Kind.Response, topic, id, error: { message: ex.message || ex } };
+        this.channel.postMessage({ kind: Kind.Response, topic, id, error: { message: ex.message || ex } });
       }
-      this.channel.postMessage(res);
     });
   }
 
-  private handle(
-    filter: (x: any) => boolean,
-    handler: (x: any) => void,
+  private handle<T>(
+    filter: (x: Message<T>) => boolean,
+    handler: (x: Message<T>) => void,
   ) {
     const wrapper = (msg: MessageEvent) => {
       const data = getData(msg);
