@@ -34,7 +34,7 @@ export class Messenger implements IMessenger {
 ​
   public subscribe<T>(target: string, handler: (data?: T) => void): () => void {
     return this.handle<T>(
-      ({kind, topic}) => kind === Kind.Request && topic === target,
+      ({kind, topic}) => kind === Kind.Publish && topic === target,
       ({data}) => handler(data));
   }
 ​
