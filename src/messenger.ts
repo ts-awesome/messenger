@@ -1,30 +1,41 @@
-import {IChannel, IMessenger, Kind, Message, RequestMessage} from './interfaces';
-import {getData, uid} from './utils';
+import {
+  IChannel,
+  IMessenger,
+  Kind,
+  Message,
+  MessageListener,
+  RequestMessage,
+  ResponseMessage,
+  Unsubscriber
+} from './interfaces';
+import {uid} from './utils';
 
 ​
 export class Messenger implements IMessenger {
 ​
   constructor(
-    private readonly channel: IChannel
+    private readonly channel: IChannel,
   ) {}
 ​
   public query<T, X = any>(topic: string, data?: X, id: string = uid()): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       this.channel.postMessage({ kind: Kind.Request, topic, data, id});
 
-      const handler = (event: MessageEvent) => {
-        const msg = getData(event);
-        if (msg.kind !== Kind.Response || msg.topic !== topic || msg.id !== id) {
+      const unsubscribe = this.channel.on('message', ({kind, topic, ...msg}: ResponseMessage) => {
+        if (kind !== Kind.Response || topic !== topic) {
           return
         }
-​
-        this.channel.removeEventListener('message', handler);
-​
-        const {error, data} = msg;
-        error ? reject(error) : resolve(data);
-      };
 
-      this.channel.addEventListener('message', handler);
+        const {error, data, id: rid} = msg;
+
+        if (rid !== id) {
+          return;
+        }
+
+        error ? reject(error) : resolve(data);
+
+        unsubscribe();
+      });
     });
   }
 
@@ -32,35 +43,34 @@ export class Messenger implements IMessenger {
     this.channel.postMessage({ kind: Kind.Publish, topic, data});
   }
 ​
-  public subscribe<T>(target: string, handler: (data?: T) => void): () => void {
+  public subscribe<T>(target: RegExp, handler: (topic: string, data?: T) => void): () => void {
     return this.handle<T>(
-      ({kind, topic}) => kind === Kind.Publish && topic === target,
-      ({data}) => handler(data));
+      ({kind, topic}) => kind === Kind.Listen && target.test(topic),
+      ({topic, data}) => handler(topic, data));
   }
 ​
-  public serve<T, X = any>(target: string, handler: (x?: T) => Promise<X>): () => void {
+  public serve<T, X = any>(target: RegExp, handler: (topic: string, x?: T) => Promise<X>): () => void {
   ​ return this.handle<T>(
-      ({kind, topic}) => kind === Kind.Request && topic === target,
-    async ({data, topic, id}: RequestMessage<T>) => {
+      ({kind, topic}) => kind === Kind.Request && target.test(topic),
+    async ({data, topic, id}: RequestMessage<T>, sender: string) => {
+      const response: ResponseMessage = {
+        kind: Kind.Response,
+        topic,
+        id
+      };
       try {
-        this.channel.postMessage({ kind: Kind.Response, topic, id, data: await handler(data) });
+        response.data = await handler(topic, data);
       } catch (ex) {
-        this.channel.postMessage({ kind: Kind.Response, topic, id, error: { message: ex.message || ex } });
+        response.error = { message: ex.message || ex };
+      } finally {
+        this.channel.postMessage(response, sender);
       }
     });
   }
 
-  private handle<T>(
-    filter: (x: Message<T>) => boolean,
-    handler: (x: Message<T>) => void,
-  ) {
-    const wrapper = (msg: MessageEvent) => {
-      const data = getData(msg);
-      if (filter(data)) {
-        handler(data);
-      }
-    };
-    this.channel.addEventListener('message', wrapper);
-    return () => this.channel.removeEventListener('message', wrapper);
+  private handle<T>(filter: (x: Message<T>) => boolean, handler: MessageListener<T>): Unsubscriber {
+    return this.channel.on(
+      'message',
+      (data: Message<T>, sender: string) => filter(data) && handler(data, sender));
   }
 }
