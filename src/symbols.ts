@@ -1,2 +1,2 @@
-export const RouterSymbol = Symbol('Router');
-export const MessengerSymbol = Symbol('Messenger');
+export const RouterSymbol = Symbol.for('RouterSymbol');
+export const MessengerSymbol = Symbol.for('MessengerSymbol');
