@@ -8,7 +8,7 @@ export interface IMqttConnector {
   unsubscribe (topic: string): this
 }
 
-abstract class MqttBaseChannel implements IChannel {
+export abstract class MqttBaseChannel implements IChannel {
   private handlers = new Set<MessageListener>();
 
   protected constructor(
@@ -74,5 +74,17 @@ export class MqttServer extends MqttBaseChannel {
   public destroy() {
     this.mqtt.unsubscribe(`${origin}/${Kind.Request}/#`);
     this.mqtt.unsubscribe(`${origin}/${Kind.Listen}/#`);
+  }
+}
+
+export class MqttServiceDiscovery extends MqttBaseChannel {
+  constructor(private mqtt: IMqttConnector, private topic: string, private origin: string = uid()) {
+    super(mqtt, origin, origin);
+
+    mqtt.subscribe(`*/${Kind.Publish}/${topic}`, {qos: 0});
+  }
+
+  public destroy() {
+    this.mqtt.subscribe(`*/${Kind.Publish}/${this.topic}`, {qos: 0});
   }
 }
