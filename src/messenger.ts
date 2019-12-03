@@ -13,16 +13,21 @@ import {uid} from './utils';
 ​
 export class Messenger implements IMessenger {
 ​
+  protected readonly ns: string;
+
   constructor(
     private readonly channel: IChannel,
-  ) {}
+    namespace: string = '',
+  ) {
+    this.ns = namespace ? `${namespace}::` : '';
+  }
 ​
   public query<T, X = any>(topic: string, data?: X, id: string = uid()): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      this.channel.postMessage({ kind: Kind.Request, topic, data, id});
+      this.channel.postMessage({ kind: Kind.Request, topic: this.ns + topic, data, id});
 
-      const unsubscribe = this.channel.on('message', ({kind, topic, ...msg}: ResponseMessage) => {
-        if (kind !== Kind.Response || topic !== topic) {
+      const unsubscribe = this.channel.on('message', ({kind, topic: reply, ...msg}: ResponseMessage) => {
+        if (kind !== Kind.Response || (this.ns + topic) !== reply) {
           return
         }
 
@@ -40,18 +45,18 @@ export class Messenger implements IMessenger {
   }
 
   public publish<T>(topic: string, data?: any): void {
-    this.channel.postMessage({ kind: Kind.Publish, topic, data});
+    this.channel.postMessage({ kind: Kind.Publish, topic: this.ns + topic, data});
   }
 ​
   public subscribe<T>(target: RegExp, handler: (topic: string, data?: T) => void): () => void {
     return this.handle<T>(
-      ({kind, topic}) => kind === Kind.Listen && target.test(topic),
-      ({topic, data}) => handler(topic, data));
+      ({kind, topic}) => kind === Kind.Listen && (!this.ns || topic.startsWith(this.ns)) && target.test(topic.substr(this.ns.length)),
+      ({topic, data}) => handler(topic.substr(this.ns.length), data));
   }
 ​
   public serve<T, X = any>(target: RegExp, handler: (topic: string, x?: T) => Promise<X>): () => void {
   ​ return this.handle<T>(
-      ({kind, topic}) => kind === Kind.Request && target.test(topic),
+      ({kind, topic}) => kind === Kind.Request && (!this.ns || topic.startsWith(this.ns)) && target.test(topic.substr(this.ns.length)),
     async ({data, topic, id}: RequestMessage<T>, sender: string) => {
       const response: ResponseMessage = {
         kind: Kind.Response,
@@ -59,7 +64,7 @@ export class Messenger implements IMessenger {
         id
       };
       try {
-        response.data = await handler(topic, data);
+        response.data = await handler(topic.substr(this.ns.length), data);
       } catch (ex) {
         response.error = { message: ex.message || ex };
       } finally {
