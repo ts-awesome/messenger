@@ -3,14 +3,14 @@ import {hasTopic} from './utils';
 
 ​
 export class Router implements IRouter {
-  private channels = new Map<IChannel, RegExp[]>();
+  private channels = new Map<IChannel, (RegExp|string)[]>();
   private subscriptions = new WeakMap<IChannel, Unsubscriber>();
   private requests = new Map<string, IChannel>();
 ​
-  public add(channel: IChannel, topics: RegExp[]): void {
+  public add(channel: IChannel, topicOrNamespaces: (RegExp|string)[]): void {
     this.remove(channel);
 
-    this.channels.set(channel, topics);
+    this.channels.set(channel, topicOrNamespaces);
 ​
     const unsub = channel.on(
       'message',
