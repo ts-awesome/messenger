@@ -35,8 +35,10 @@ export interface ResponseMessage<T = any> {
 
 export type Message<T = any> = PublishMessage<T> | ListenMessage<T> | RequestMessage<T> | ResponseMessage<T>;
 
+export type SenderId = string;
+
 export interface MessageListener<T = any> {
-  (data: Message<T>, sender: string): void;
+  (data: Message<T>, sender: SenderId): void;
 }
 
 export interface Unsubscriber {
@@ -53,6 +55,7 @@ export interface IMessenger {
   serve<T, X = any>(topic: RegExp, handler: (topic: string, x?: T) => X | Promise<X>): Unsubscriber;
 
   publish<T>(topic: string, data?: any): void;
+  notify<T>(recipient: SenderId, topic: string, data?: any): void;
   subscribe<T>(topic: RegExp, handler: (topic: string, data?: T) => void): Unsubscriber;
 }
 

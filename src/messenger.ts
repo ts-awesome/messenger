@@ -6,6 +6,7 @@ import {
   MessageListener,
   RequestMessage,
   ResponseMessage,
+  SenderId,
   Unsubscriber
 } from './interfaces';
 import {uid} from './utils';
@@ -47,10 +48,14 @@ export class Messenger implements IMessenger {
   public publish<T>(topic: string, data?: any): void {
     this.channel.postMessage({ kind: Kind.Publish, topic: this.ns + topic, data});
   }
+
+  public notify<T>(recipient: SenderId, topic: string, data?: any): void {
+    this.channel.postMessage({ kind: Kind.Listen, topic: this.ns + topic, data}, recipient);
+  }
 ​
   public subscribe<T>(target: RegExp, handler: (topic: string, data?: T) => void): () => void {
     return this.handle<T>(
-      ({kind, topic}) => kind === Kind.Listen && (!this.ns || topic.startsWith(this.ns)) && target.test(topic.substr(this.ns.length)),
+      ({kind, topic}) => (kind === Kind.Listen || kind === Kind.Publish) && (!this.ns || topic.startsWith(this.ns)) && target.test(topic.substr(this.ns.length)),
       ({topic, data}) => handler(topic.substr(this.ns.length), data));
   }
 ​
