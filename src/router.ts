@@ -47,8 +47,12 @@ export class Router implements IRouter {
 
     this.channels.forEach((topics, w) => {
       switch (kind) {
-        case Kind.Listen:
         case Kind.Publish:
+          if (w !== origin) {
+            w.postMessage(data);
+          }
+          break;
+        case Kind.Listen:
         case Kind.Request:
           if (hasTopic(topic, topics) && w !== origin) {
             w.postMessage(data);
