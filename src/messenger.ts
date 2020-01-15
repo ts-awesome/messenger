@@ -71,7 +71,18 @@ export class Messenger implements IMessenger {
       try {
         response.data = await handler(topic.substr(this.ns.length), data);
       } catch (ex) {
-        response.error = { message: ex.message || ex };
+        if (ex instanceof Error) {
+          const data = {}
+          for(let key of Object.keys(ex)) {
+            data[key] = ex[key];
+          }
+          const message = ex.message;
+          const constructor = Object.getPrototypeOf(ex).constructor?.name ?? 'Error';
+
+          response.error = { ...data, message, constructor };
+        } else {
+          response.error = { message: ex.message || ex };
+        }
       } finally {
         this.channel.postMessage(response, sender);
       }

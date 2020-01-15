@@ -30,7 +30,7 @@ export interface ResponseMessage<T = any> {
   topic: string;
   id: string;
   data?: T;
-  error?: string | {message: string};
+  error?: string | {message: string, [key: string]: any};
 }
 
 export type Message<T = any> = PublishMessage<T> | ListenMessage<T> | RequestMessage<T> | ResponseMessage<T>;
